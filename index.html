@@ -115,25 +115,36 @@
         }
 
         function parseFeatures(text) {
-            const cgpaMatch = text.match(/(CGPA|GPA):?\s*([\d.]+)/i);
-            const cgpa = cgpaMatch ? cgpaMatch[2] : "N/A";
+    // Extract CGPA
+    const cgpaMatch = text.match(/(CGPA|GPA):?\s*([\d.]+)/i);
+    const cgpa = cgpaMatch ? cgpaMatch[2] : "N/A";
 
-            const greMatch = text.match(/GRE\s*Score:?\s*(\d+)/i);
-            const gre = greMatch ? greMatch[1] : "N/A";
+    // Extract GRE
+    const greMatch = text.match(/GRE\s*Score:?\s*(\d+)/i);
+    const gre = greMatch ? greMatch[1] : "N/A";
 
-            const ieltsMatch = text.match(/IELTS\s*Score:?\s*([\d.]+)/i);
-            const ielts = ieltsMatch ? ieltsMatch[1] : "N/A";
+    // Extract IELTS
+    const ieltsMatch = text.match(/IELTS\s*Score:?\s*([\d.]+)/i);
+    const ielts = ieltsMatch ? ieltsMatch[1] : "N/A";
 
-            const papers = [...text.matchAll(/Latest Paper: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
-            const awards = [...text.matchAll(/Award: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
-            const researchInterests = [...text.matchAll(/Research Interest: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
+    // Extract Latest Papers
+    const papers = [...text.matchAll(/Latest Paper: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
 
-            // Extract university name
-            const universityMatch = text.match(/(?:University|Institute|College|School of [\w\s]+):?\s*([\w\s,]+)/i);
-            const university = universityMatch ? universityMatch[0].trim() : "N/A";
+    // Extract Awards
+    const awards = [...text.matchAll(/Award: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
 
-            return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests, university };
-        }
+    // Extract Research Interests
+    const researchInterests = [...text.matchAll(/Research Interest: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
+
+    // Extract University Name (Improved Regex)
+    const universityMatch = text.match(/(?:University|Institute|College|School)\s+of\s+([\w\s]+)/i);
+    const university = universityMatch ? universityMatch[0].trim() : "N/A";
+
+    console.log("Extracted Features:", { cgpa, gre, ielts, papers, awards, researchInterests, university });
+
+    return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests: researchInterests, university };
+}
+
 
         function downloadJson() {
             if (extractedData.length === 0) {
