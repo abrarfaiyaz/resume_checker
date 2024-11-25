@@ -51,11 +51,13 @@
                 return;
             }
 
-            output.textContent = "Processing resumes... Please wait.";
+            console.log(`Number of files selected: ${files.length}`);
             extractedData = []; // Reset data
 
-            // Process each PDF file
+            output.textContent = "Processing resumes... Please wait.";
+
             for (const file of files) {
+                console.log(`Processing file: ${file.name}`);
                 if (file.name.endsWith(".pdf")) {
                     try {
                         const text = await extractTextFromPdf(file);
@@ -64,15 +66,6 @@
                         extractedData.push(features);
                     } catch (error) {
                         console.error(`Error processing ${file.name}:`, error);
-                        extractedData.push({
-                            name: file.name,
-                            cgpa: "N/A",
-                            gre: "N/A",
-                            ielts: "N/A",
-                            latest_papers: "N/A",
-                            awards: "N/A",
-                            research_interests: "N/A",
-                        });
                     }
                 }
             }
@@ -97,36 +90,20 @@
         }
 
         function parseFeatures(text) {
-            // Extract CGPA
             const cgpaMatch = text.match(/(CGPA|GPA):?\s*([\d.]+)/i);
             const cgpa = cgpaMatch ? cgpaMatch[2] : "N/A";
 
-            // Extract GRE Score
             const greMatch = text.match(/GRE\s*Score:?\s*(\d+)/i);
             const gre = greMatch ? greMatch[1] : "N/A";
 
-            // Extract IELTS Score
             const ieltsMatch = text.match(/IELTS\s*Score:?\s*([\d.]+)/i);
             const ielts = ieltsMatch ? ieltsMatch[1] : "N/A";
 
-            // Extract Latest Papers
             const papers = [...text.matchAll(/Latest Paper: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
-
-            // Extract Awards
             const awards = [...text.matchAll(/Award: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
-
-            // Extract Research Interests
             const researchInterests = [...text.matchAll(/Research Interest: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
 
-            // Ensure all fields are returned with a fallback to N/A
-            return {
-                cgpa: cgpa || "N/A",
-                gre: gre || "N/A",
-                ielts: ielts || "N/A",
-                latest_papers: papers || "N/A",
-                awards: awards || "N/A",
-                research_interests: researchInterests || "N/A",
-            };
+            return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests: researchInterests };
         }
 
         function downloadJson() {
