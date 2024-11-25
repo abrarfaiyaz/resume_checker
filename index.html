@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Extractor</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>Resume Feature Extractor</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist/build/pdf.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -53,12 +54,26 @@
             output.textContent = "Processing resumes... Please wait.";
             extractedData = []; // Reset data
 
+            // Process each PDF file
             for (const file of files) {
                 if (file.name.endsWith(".pdf")) {
-                    const text = await extractTextFromPdf(file);
-                    const features = parseFeatures(text);
-                    features.name = file.name;
-                    extractedData.push(features);
+                    try {
+                        const text = await extractTextFromPdf(file);
+                        const features = parseFeatures(text);
+                        features.name = file.name; // Add the file name
+                        extractedData.push(features);
+                    } catch (error) {
+                        console.error(`Error processing ${file.name}:`, error);
+                        extractedData.push({
+                            name: file.name,
+                            cgpa: "N/A",
+                            gre: "N/A",
+                            ielts: "N/A",
+                            latest_papers: "N/A",
+                            awards: "N/A",
+                            research_interests: "N/A",
+                        });
+                    }
                 }
             }
 
@@ -68,15 +83,14 @@
 
         async function extractTextFromPdf(file) {
             const arrayBuffer = await file.arrayBuffer();
-            const pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@2.13.216/build/pdf.min.js');
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
             let text = '';
 
+            // Extract text from each page
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const content = await page.getTextContent();
-                const strings = content.items.map(item => item.str);
-                text += strings.join(' ') + '\n';
+                text += content.items.map(item => item.str).join(' ') + '\n';
             }
 
             return text;
@@ -104,10 +118,23 @@
             // Extract Research Interests
             const researchInterests = [...text.matchAll(/Research Interest: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
 
-            return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests: researchInterests };
+            // Ensure all fields are returned with a fallback to N/A
+            return {
+                cgpa: cgpa || "N/A",
+                gre: gre || "N/A",
+                ielts: ielts || "N/A",
+                latest_papers: papers || "N/A",
+                awards: awards || "N/A",
+                research_interests: researchInterests || "N/A",
+            };
         }
 
         function downloadJson() {
+            if (extractedData.length === 0) {
+                alert("No data to download. Process the resumes first.");
+                return;
+            }
+
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(extractedData, null, 2));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
@@ -118,6 +145,11 @@
         }
 
         function downloadCsv() {
+            if (extractedData.length === 0) {
+                alert("No data to download. Process the resumes first.");
+                return;
+            }
+
             const worksheet = XLSX.utils.json_to_sheet(extractedData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Resumes");
