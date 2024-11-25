@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #output {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Resume Feature Extractor</h1>
+    <p>Select a folder containing resumes in PDF format:</p>
+    <input type="file" id="pdfUpload" webkitdirectory directory multiple />
+    <button onclick="processResumes()">Process Resumes</button>
+    <button onclick="downloadJson()">Download JSON</button>
+    <button onclick="downloadCsv()">Download CSV</button>
+    <div id="output"></div>
+
+    <script>
+        let extractedData = [];
+
+        async function processResumes() {
+            const input = document.getElementById("pdfUpload");
+            const files = input.files;
+            const output = document.getElementById("output");
+
+            if (files.length === 0) {
+                output.textContent = "Please select a folder containing PDF files.";
+                return;
+            }
+
+            output.textContent = "Processing resumes... Please wait.";
+            extractedData = []; // Reset data
+
+            for (const file of files) {
+                if (file.name.endsWith(".pdf")) {
+                    const text = await extractTextFromPdf(file);
+                    const features = parseFeatures(text);
+                    features.name = file.name;
+                    extractedData.push(features);
+                }
+            }
+
+            // Display results
+            output.textContent = JSON.stringify(extractedData, null, 2);
+        }
+
+        async function extractTextFromPdf(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@2.13.216/build/pdf.min.js');
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let text = '';
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const strings = content.items.map(item => item.str);
+                text += strings.join(' ') + '\n';
+            }
+
+            return text;
+        }
+
+        function parseFeatures(text) {
+            // Extract CGPA
+            const cgpaMatch = text.match(/(CGPA|GPA):?\s*([\d.]+)/i);
+            const cgpa = cgpaMatch ? cgpaMatch[2] : "N/A";
+
+            // Extract GRE Score
+            const greMatch = text.match(/GRE\s*Score:?\s*(\d+)/i);
+            const gre = greMatch ? greMatch[1] : "N/A";
+
+            // Extract IELTS Score
+            const ieltsMatch = text.match(/IELTS\s*Score:?\s*([\d.]+)/i);
+            const ielts = ieltsMatch ? ieltsMatch[1] : "N/A";
+
+            // Extract Latest Papers
+            const papers = [...text.matchAll(/Latest Paper: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
+
+            // Extract Awards
+            const awards = [...text.matchAll(/Award: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
+
+            // Extract Research Interests
+            const researchInterests = [...text.matchAll(/Research Interest: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
+
+            return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests: researchInterests };
+        }
+
+        function downloadJson() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(extractedData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "resumes.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function downloadCsv() {
+            const worksheet = XLSX.utils.json_to_sheet(extractedData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Resumes");
+            XLSX.writeFile(workbook, "resumes.xlsx");
+        }
+    </script>
+</body>
+</html>
