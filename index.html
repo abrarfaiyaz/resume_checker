@@ -65,6 +65,7 @@
                     <th>GRE</th>
                     <th>Awards</th>
                     <th>Research Interests</th>
+                    <th>University</th>
                     <th>Link to PDF</th>
                 </tr>
             `;
@@ -87,6 +88,7 @@
                             <td>${features.gre}</td>
                             <td>${features.awards}</td>
                             <td>${features.research_interests}</td>
+                            <td>${features.university}</td>
                             <td><a href="${features.link}" target="_blank">Open PDF</a></td>
                         `;
                         outputTable.appendChild(row);
@@ -126,7 +128,11 @@
             const awards = [...text.matchAll(/Award: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
             const researchInterests = [...text.matchAll(/Research Interest: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
 
-            return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests: researchInterests };
+            // Extract university name
+            const universityMatch = text.match(/(?:University|Institute|College|School of [\w\s]+):?\s*([\w\s,]+)/i);
+            const university = universityMatch ? universityMatch[0].trim() : "N/A";
+
+            return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests, university };
         }
 
         function downloadJson() {
@@ -150,12 +156,13 @@
                 return;
             }
 
-            const worksheet = XLSX.utils.json_to_sheet(extractedData.map(({ name, cgpa, gre, awards, research_interests, link }) => ({
+            const worksheet = XLSX.utils.json_to_sheet(extractedData.map(({ name, cgpa, gre, awards, research_interests, university, link }) => ({
                 Name: name,
                 CGPA: cgpa,
                 GRE: gre,
                 Awards: awards,
                 Research_Interests: research_interests,
+                University: university,
                 Link: link
             })));
             const workbook = XLSX.utils.book_new();
@@ -165,144 +172,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Feature Extractor</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist/build/pdf.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1 {
-            text-align: center;
-        }
-        #output {
-            margin-top: 20px;
-            white-space: pre-wrap;
-            background-color: #f9f9f9;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        button {
-            margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Resume Feature Extractor</h1>
-    <p>Select a folder containing resumes in PDF format:</p>
-    <input type="file" id="pdfUpload" webkitdirectory directory multiple />
-    <button onclick="processResumes()">Process Resumes</button>
-    <button onclick="downloadJson()">Download JSON</button>
-    <button onclick="downloadCsv()">Download CSV</button>
-    <div id="output"></div>
-
-    <script>
-        let extractedData = [];
-
-        async function processResumes() {
-            const input = document.getElementById("pdfUpload");
-            const files = input.files;
-            const output = document.getElementById("output");
-
-            if (files.length === 0) {
-                output.textContent = "Please select a folder containing PDF files.";
-                return;
-            }
-
-            console.log(`Number of files selected: ${files.length}`);
-            extractedData = []; // Reset data
-
-            output.textContent = "Processing resumes... Please wait.";
-
-            for (const file of files) {
-                console.log(`Processing file: ${file.name}`);
-                if (file.name.endsWith(".pdf")) {
-                    try {
-                        const text = await extractTextFromPdf(file);
-                        const features = parseFeatures(text);
-                        features.name = file.name; // Add the file name
-                        extractedData.push(features);
-                    } catch (error) {
-                        console.error(`Error processing ${file.name}:`, error);
-                    }
-                }
-            }
-
-            // Display results
-            output.textContent = JSON.stringify(extractedData, null, 2);
-        }
-
-        async function extractTextFromPdf(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            let text = '';
-
-            // Extract text from each page
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                text += content.items.map(item => item.str).join(' ') + '\n';
-            }
-
-            return text;
-        }
-
-        function parseFeatures(text) {
-            const cgpaMatch = text.match(/(CGPA|GPA):?\s*([\d.]+)/i);
-            const cgpa = cgpaMatch ? cgpaMatch[2] : "N/A";
-
-            const greMatch = text.match(/GRE\s*Score:?\s*(\d+)/i);
-            const gre = greMatch ? greMatch[1] : "N/A";
-
-            const ieltsMatch = text.match(/IELTS\s*Score:?\s*([\d.]+)/i);
-            const ielts = ieltsMatch ? ieltsMatch[1] : "N/A";
-
-            const papers = [...text.matchAll(/Latest Paper: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
-            const awards = [...text.matchAll(/Award: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
-            const researchInterests = [...text.matchAll(/Research Interest: (.+)/gi)].map(match => match[1]).join(" / ") || "N/A";
-
-            return { cgpa, gre, ielts, latest_papers: papers, awards, research_interests: researchInterests };
-        }
-
-        function downloadJson() {
-            if (extractedData.length === 0) {
-                alert("No data to download. Process the resumes first.");
-                return;
-            }
-
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(extractedData, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "resumes.json");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        }
-
-        function downloadCsv() {
-            if (extractedData.length === 0) {
-                alert("No data to download. Process the resumes first.");
-                return;
-            }
-
-            const worksheet = XLSX.utils.json_to_sheet(extractedData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Resumes");
-            XLSX.writeFile(workbook, "resumes.xlsx");
-        }
-    </script>
-</body>
-</html> -->
